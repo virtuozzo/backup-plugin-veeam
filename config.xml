@@ -1,0 +1,62 @@
+<config>
+  <agent>
+    <xen>false</xen>
+    <kvm>false</kvm>
+    <vcloud>false</vcloud>
+    <vcenter>false</vcenter>
+  </agent>
+  <plugin_capabilities>
+    <pulling_interval>1800</pulling_interval>
+    <full_machine recovery_mode='false'>true</full_machine>
+    <per_vdisk>false</per_vdisk>
+    <os_files_level>false</os_files_level>
+    <backup_now>true</backup_now>
+  </plugin_capabilities>
+  <auto_backup_presets>
+    <schedule>
+      <type>Hourly</type>
+      <max_recovery_points>1</max_recovery_points>
+    </schedule>
+  </auto_backup_presets>
+  <configuration_parameters>
+    <option>
+      <name>vSphere template job Name</name>
+      <unique_identifier>vsphere_template_job_name</unique_identifier>
+      <type>string</type>
+      <regex_check>\w+</regex_check>
+    </option>
+    <option>
+      <name>Backup repository name</name>
+      <unique_identifier>backup_repository_name</unique_identifier>
+      <type>string</type>
+      <regex_check>\w+</regex_check>
+    </option>
+    <option>
+      <name>Power on after restore</name>
+      <unique_identifier>power_on_after_restore</unique_identifier>
+      <type>bool</type>
+    </option>
+    <option>
+      <name>Quick rollback</name>
+      <unique_identifier>quick_rollback</unique_identifier>
+      <type>bool</type>
+    </option>
+  </configuration_parameters>
+  <scheduler_options>
+    <hourly/>
+    <daily>
+      <frequency>false</frequency>
+    </daily>
+    <weekly>
+      <days_to_run>true</days_to_run>
+    </weekly>
+    <monthly>
+      <day_of_the_week_to_run>true</day_of_the_week_to_run>
+      <week_of_the_month_to_run>false</week_of_the_month_to_run>
+    </monthly>
+    <yearly>
+      <day_of_the_week_to_run>true</day_of_the_week_to_run>
+      <month_to_run>true</month_to_run>
+    </yearly>
+  </scheduler_options>
+</config>
