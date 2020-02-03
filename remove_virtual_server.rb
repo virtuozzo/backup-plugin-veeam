@@ -2,11 +2,9 @@ Backups::Plugin.hook helpers: %i[client_helper] do
   def call(virtual_server)
     virtual_server.metadata[:veeam_related_job_ids]&.each do |job_id|
       begin
-          api_get("jobs/#{job_id}")
-      rescue => err
-          # Something went wrong while matching Veeam Job for the virtual server
-      else
           api_put("jobs/#{job_id}", disable_schedule_params.to_xml)
+      rescue RestClient::BadRequest
+          # do nothing
       end
     end
 
