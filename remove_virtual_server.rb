@@ -1,7 +1,11 @@
 Backups::Plugin.hook helpers: %i[client_helper] do
   def call(virtual_server)
     virtual_server.metadata[:veeam_related_job_ids]&.each do |job_id|
-      api_put("jobs/#{job_id}", disable_schedule_params.to_xml)
+      begin
+          api_put("jobs/#{job_id}", disable_schedule_params.to_xml)
+      rescue RestClient::BadRequest => err
+          logger.error("Job #{job_id} doesn't exist on third-party: #{err.message}")
+      end
     end
 
     success
