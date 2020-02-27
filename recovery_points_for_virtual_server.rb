@@ -11,18 +11,13 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
     virtual_server.metadata[:veeam_related_job_ids].flat_map do |job_id|
 
       # Get Job's name by its ID
-      job_name = api_get("jobs/#{job_id}")[:EntityRef]
-                   .dig(:Name)
-
-      unless job_name
+      unless job_name = api_get("jobs/#{job_id}")[:EntityRef].dig(:Name)
         logger.error("Unable to get Name of Job by ID: '#{job_id}'")
         next
       end
 
       # Find Backup which name matches Job's name
-      backup_id = get_backup_id(job_name)
-
-      unless backup_id
+      unless backup_id = get_backup_id(job_name)
         logger.error("Unable to find Backup for Job named '#{job_name}'")
         next
       end
@@ -75,6 +70,6 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
 
       return unless points
 
-      points.is_a?(Array) ? points : [points]
+      points.is_a?(Hash) ? [points] : points
   end
 end
