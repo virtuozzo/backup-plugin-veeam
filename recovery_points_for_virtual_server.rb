@@ -11,7 +11,8 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
     virtual_server.metadata[:veeam_related_job_ids].flat_map do |job_id|
 
       # Get Job's name by its ID
-      unless job_name = api_get("jobs/#{job_id}")[:EntityRef].dig(:Name)
+      unless job_name = api_get("jobs/#{job_id}")
+                          .dig(:EntityRef, :Name)
         logger.error("Unable to get Name of Job by ID: '#{job_id}'")
         next
       end
@@ -23,19 +24,18 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
       end
 
       # Get restorePoints for Backup
-      restore_points = get_recovery_points("backups", backup_id, "restorePoints")
-
-      restore_points.uniq { |r| r[:UID] }.flat_map do |restore_point_hash|
-        rp_id = uid_to_identifier("RestorePoint", restore_point_hash[:UID])
-        unless rp_id
+      get_recovery_points("backups", backup_id, "restorePoints")
+        .uniq { |r| r[:UID] }
+        .flat_map do |restore_point_hash|
+        unless rp_id = uid_to_identifier("RestorePoint", restore_point_hash[:UID])
           logger.error("Unable to get RestorePoint ID")
           next
         end
 
         # Get vmRestorePoints for restorePoints
-        vm_restore_points = get_recovery_points("restorePoints", rp_id, "vmRestorePoints")
-
-        vm_restore_points.flatten.compact.map do |vm_restore_point_hash|
+        get_recovery_points("restorePoints", rp_id, "vmRestorePoints")
+          .flatten
+          .compact.map do |vm_restore_point_hash|
 
           # Skip vmRestorePoint if it isn't in VmRestorePoint for Virtual Server
           next unless vm_recovery_points.any? {|vm_rp| vm_rp[:UID].eql? vm_restore_point_hash[:UID]}
