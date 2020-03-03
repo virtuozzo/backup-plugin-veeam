@@ -2,10 +2,7 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
   def call(virtual_server)
 
     # Get VmRestorePoint for Virtual Server
-    vm_recovery_points =
-      api_get(
-        build_query(:vmrestorepoint, HierarchyObjRef: "\"#{virtual_server.metadata[:veeam_uid]}\"")
-      ).dig(:QueryResult, :Entities, :VmRestorePoints, :VmRestorePoint)
+    vm_recovery_points = get_vm_recovery_points(virtual_server.metadata[:veeam_uid])
 
     # Iterate over Jobs => Backup => restorePoints => vmRestorePoints
     virtual_server.metadata[:veeam_related_job_ids].flat_map do |job_id|
@@ -72,4 +69,14 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
 
       points.is_a?(Hash) ? [points] : points
   end
+
+  def get_vm_recovery_points(resource_id)
+    vm_points = api_get(build_query(:vmrestorepoint, HierarchyObjRef: "\"#{resource_id}\""))
+                  .dig(:QueryResult, :Entities, :VmRestorePoints, :VmRestorePoint)
+
+    return unless vm_points
+
+    vm_points.is_a?(Hash) ? [vm_points] : vm_points
+  end
+
 end
