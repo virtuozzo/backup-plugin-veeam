@@ -72,9 +72,7 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
 
   def get_vm_recovery_points(resource_id)
     vm_points = api_get(build_query(:vmrestorepoint, HierarchyObjRef: "\"#{resource_id}\""))
-                  .dig(:QueryResult, :Entities, :VmRestorePoints, :VmRestorePoint)
-
-    return unless vm_points
+                  .dig(:QueryResult, :Entities, :VmRestorePoints, :VmRestorePoint) || []
 
     vm_points.is_a?(Hash) ? [vm_points] : vm_points
   end
