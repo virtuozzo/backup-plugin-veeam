@@ -84,6 +84,18 @@ Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper uid_help
       .dig(:QueryResult, :Refs, :Ref, :UID)
   end
 
+  def backup_server_id
+    backup_repository_ref =
+      api_get("repositories/#{uid_to_identifier(:Repository, backup_repository_uid)}")
+        .dig(:EntityRef, :Links, :Link)
+
+    return unless backup_repository_ref
+
+    backup_repository_ref.detect { |hash| hash[:Type] == 'BackupServerReference' }
+      .fetch(:Href, "")
+      .rpartition('/').last
+  end
+
   def vcenter_instance_uuid(virtual_server)
     if virtual_server.vcloud?
       virtual_server.vcenter
@@ -122,19 +134,37 @@ Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper uid_help
   end
 
   def vm_ref(virtual_server)
-    hierarchy_root_id =
-      uid_to_identifier(
-        :HierarchyRoot,
-        api_get(
-          build_query(:hierarchyroot, { uniqueid: "\"#{vcenter_instance_uuid(virtual_server)}\"" }, entities: false)
-        ).dig(:QueryResult, :Refs, :Ref, :UID)
-      )
+    hierarchy_roots =
+      api_get(
+        build_query(:hierarchyroot, { uniqueid: "\"#{vcenter_instance_uuid(virtual_server)}\"" }, entities: false)
+      ).dig(:QueryResult, :Refs, :Ref)
 
-    return unless hierarchy_root_id
+    return unless hierarchy_roots
 
-    {
-      obj_ref: "urn:VMware:Vm:#{hierarchy_root_id}.#{virtual_server.vcenter_moref}",
-      obj_name: virtual_server.label
-    }
+    # Iterate over hierarchyroots to find proper VMware vCenter
+    (hierarchy_roots.is_a?(Hash) ? [hierarchy_roots] : hierarchy_roots).each do |hierarchy_root|
+      hierarchy_root_id = uid_to_identifier(:HierarchyRoot, hierarchy_root[:UID])
+      next unless hierarchy_root_id
+
+      backup_server_href =
+        api_get("hierarchyRoots/#{hierarchy_root_id}").dig(:EntityRef, :Links, :Link)
+      next unless backup_server_href
+
+      backup_server_url =
+        backup_server_href.detect { |hash| hash[:Type] == 'BackupServerReference' }[:Href]
+      next unless backup_server_url
+
+      # BackupServer ID of VM hierarchyroot is equal to BackupServer ID of BackupRepository
+      if backup_server_url
+           .rpartition('/').last
+           .eql? backup_server_id
+        return {
+                 obj_ref: "urn:VMware:Vm:#{hierarchy_root_id}.#{virtual_server.vcenter_moref}",
+                 obj_name: virtual_server.label
+               }
+      end
+    end
+
+    return
   end
 end
