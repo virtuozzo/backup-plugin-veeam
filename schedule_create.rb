@@ -91,8 +91,9 @@ Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper uid_help
 
     return unless backup_repository_ref
 
-    backup_repository_ref.detect { |hash| hash[:Type] == 'BackupServerReference' }[:Href]
-      .rpartition('/')[2] || ""
+    backup_repository_ref.detect { |hash| hash[:Type] == 'BackupServerReference' }
+      .fetch(:Href, "")
+      .rpartition('/').last
   end
 
   def vcenter_instance_uuid(virtual_server)
@@ -133,16 +134,16 @@ Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper uid_help
   end
 
   def vm_ref(virtual_server)
-    hierarchyroots =
+    hierarchy_roots =
       api_get(
         build_query(:hierarchyroot, { uniqueid: "\"#{vcenter_instance_uuid(virtual_server)}\"" }, entities: false)
       ).dig(:QueryResult, :Refs, :Ref)
 
-    return unless hierarchyroots
+    return unless hierarchy_roots
 
     # Iterate over hierarchyroots to find proper VMware vCenter
-    (hierarchyroots.is_a?(Hash) ? [hierarchyroots] : hierarchyroots).each do |hierarchyroot|
-      hierarchy_root_id = uid_to_identifier(:HierarchyRoot, hierarchyroot[:UID])
+    (hierarchy_roots.is_a?(Hash) ? [hierarchy_roots] : hierarchy_roots).each do |hierarchy_root|
+      hierarchy_root_id = uid_to_identifier(:HierarchyRoot, hierarchy_root[:UID])
       next unless hierarchy_root_id
 
       backup_server_href =
@@ -155,7 +156,7 @@ Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper uid_help
 
       # BackupServer ID of VM hierarchyroot is equal to BackupServer ID of BackupRepository
       if backup_server_url
-           .rpartition('/')[2]
+           .rpartition('/').last
            .eql? backup_server_id
         return {
                  obj_ref: "urn:VMware:Vm:#{hierarchy_root_id}.#{virtual_server.vcenter_moref}",
