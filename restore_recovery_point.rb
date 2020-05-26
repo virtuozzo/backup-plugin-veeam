@@ -1,6 +1,8 @@
 Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper session_helper] do
   RESTORE_RESULT_KEY_CHAIN = %i[QueryResult Entities RestoreSessions RestoreSession Result].freeze
   RESTORE_SESSION_REGEX = %r{restoreSessions\/(.*)}
+  TASK_GET_INTERVAL = 10 # seconds
+  TASK_GET_RETRIES = 10 # times
 
   def call(recovery_point, _virtual_server)
     restore_path = "vmRestorePoints/#{recovery_point.metadata[:veeam_id]}?action=restore"
@@ -10,9 +12,14 @@ Backups::Plugin.hook helpers: %i[client_helper task_helper query_helper session_
 
       task_poller(task_path).run
 
-      links = api_get(task_path)[:Task][:Links][:Link]
-
-      links.is_a?(Array) ? links.detect { |hash| hash[:Type] == 'RestoreSession' }[:Href] : nil
+      r = 1 # Wait TASK_GET_RETRIES times and TASK_GET_INTERVAL seconds each, for tasks's RestoreSession
+      until r == TASK_GET_RETRIES do
+          links = api_get(task_path)[:Task][:Links][:Link]
+          link = links.is_a?(Array) ? links.detect { |hash| hash[:Type] == 'RestoreSession' }[:Href] : nil
+          break link if link
+          sleep(TASK_GET_INTERVAL)
+          r +=1
+      end
     end
 
     return error('Unable to start restore session') unless restore_session_url
