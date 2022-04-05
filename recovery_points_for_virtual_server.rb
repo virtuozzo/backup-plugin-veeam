@@ -29,9 +29,6 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
           next
         end
 
-        # Get BackupSize for restorePoints
-        backup_size = get_backup_size(backup_id)
-
         # Get vmRestorePoints for restorePoints
         get_recovery_points("restorePoints", rp_id, "vmRestorePoints")
           .flatten
@@ -42,6 +39,9 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
 
           # Restore point date is right after '@' rightmost occurrence
           vm_restore_point_date = vm_restore_point_hash[:Name].rpartition('@')[2]
+
+          # Get BackupSize for restorePoints
+          backup_size = get_backup_size(vm_restore_point_hash)
 
           build_recovery_point(size: backup_size,
                            created_at: vm_restore_point_date,
@@ -80,14 +80,14 @@ Backups::Plugin.hook helpers: %i[client_helper query_helper uid_helper] do
     vm_points.is_a?(Hash) ? [vm_points] : vm_points
   end
 
-  def get_backup_size(backup_id)
-    api_get(
-      build_query(:BackupFile, BackupUid: identifier_to_uid(:Backup, backup_id))
-    )
-    .dig(:QueryResult, :Entities, :BackupFiles, :BackupFile)
-    .map { |hash| hash.transform_keys(&:downcase) }
-    .max_by { |hash| Time.parse(hash[:creationtimeutc]) if hash[:creationtimeutc] }
-    &.fetch(:backupsize, 0)
+  def get_backup_size(vm_restore_point_hash)
+    refs = vm_restore_point_hash.dig(:Links, :Link)
+
+    backup_file_id = refs.detect { |hash| hash[:Type] == 'BackupFileReference' }&.fetch(:Href, '')&.rpartition('/')&.last
+
+    return 0 unless backup_file_id
+
+    api_get("backupFiles/#{backup_file_id}?format=Entity").dig(:BackupFile, :BackupSize)
   rescue RestClient::BadRequest
     0
   end
