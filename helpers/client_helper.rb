@@ -50,7 +50,7 @@ Backups::Plugin.helper do
 
   def session_headers
     @session_headers ||=
-      client['sessionMngr/?v=v1_4']
+      client['sessionMngr/?v=latest']
       .post(
         {},
         authorization: "Basic #{Base64.encode64("#{username}:#{password}")}".chomp
